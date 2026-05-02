@@ -1,0 +1,90 @@
+[gd_scene format=3 uid="uid://l5lmorlnuf6s"]
+
+[ext_resource type="Script" uid="uid://bi60jsxpyni5i" path="res://scripts/main.gd" id="1"]
+[ext_resource type="Script" uid="uid://ckxo5tpsynxca" path="res://scripts/conus_map.gd" id="2"]
+[ext_resource type="Script" uid="uid://dg8ia3suihhr" path="res://scripts/camera_controller.gd" id="3"]
+[ext_resource type="Script" uid="uid://cmm4gm0ekareh" path="res://scripts/hud.gd" id="4"]
+[ext_resource type="Script" uid="uid://bn8l1qqbxq7fq" path="res://scripts/risk_overlay.gd" id="5"]
+[ext_resource type="Script" uid="uid://cqlyfri3wdkgq" path="res://scripts/atmosphere_overlay.gd" id="6"]
+[ext_resource type="Script" uid="uid://dl08n5tp14jes" path="res://scripts/wind_barb_overlay.gd" id="7"]
+[ext_resource type="Script" uid="uid://crjobnq4dn33" path="res://scripts/contour_overlay.gd" id="8"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_top"]
+content_margin_left = 20.0
+content_margin_top = 10.0
+content_margin_right = 20.0
+content_margin_bottom = 10.0
+bg_color = Color(0.08, 0.09, 0.12, 0.85)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bottom"]
+content_margin_left = 20.0
+content_margin_top = 8.0
+content_margin_right = 20.0
+content_margin_bottom = 8.0
+bg_color = Color(0.08, 0.09, 0.12, 0.85)
+
+[node name="Main" type="Node2D" unique_id=2016994733]
+script = ExtResource("1")
+
+[node name="AtmosphereOverlay" type="Node2D" parent="." unique_id=1943630138]
+script = ExtResource("6")
+
+[node name="CONUSMap" type="Node2D" parent="." unique_id=249601951]
+script = ExtResource("2")
+
+[node name="WindBarbOverlay" type="Node2D" parent="." unique_id=531674703]
+script = ExtResource("7")
+
+[node name="ContourOverlay" type="Node2D" parent="." unique_id=1902836251]
+script = ExtResource("8")
+
+[node name="RiskOverlay" type="Node2D" parent="." unique_id=22105360]
+script = ExtResource("5")
+
+[node name="Camera" type="Camera2D" parent="." unique_id=1561955247]
+script = ExtResource("3")
+
+[node name="HUD" type="CanvasLayer" parent="." unique_id=8804647]
+script = ExtResource("4")
+
+[node name="TopBar" type="PanelContainer" parent="HUD" unique_id=396351292]
+anchors_preset = 10
+anchor_right = 1.0
+grow_horizontal = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_top")
+
+[node name="TitleLabel" type="Label" parent="HUD/TopBar" unique_id=1403911678]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.88, 0.92, 1)
+theme_override_font_sizes/font_size = 22
+text = "Categorical Risk Forecast"
+horizontal_alignment = 1
+
+[node name="BottomBar" type="PanelContainer" parent="HUD" unique_id=929085762]
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_bottom")
+
+[node name="HBox" type="HBoxContainer" parent="HUD/BottomBar" unique_id=1313290460]
+layout_mode = 2
+
+[node name="StateLabel" type="Label" parent="HUD/BottomBar/HBox" unique_id=1155940954]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.55, 0.85, 0.95, 1)
+theme_override_font_sizes/font_size = 18
+
+[node name="InfoLabel" type="Label" parent="HUD/BottomBar/HBox" unique_id=855824037]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.55, 0.58, 0.65, 1)
+theme_override_font_sizes/font_size = 14
+text = "Scroll to zoom | Middle-click to pan | 1-6 to draw risk"
+horizontal_alignment = 2
