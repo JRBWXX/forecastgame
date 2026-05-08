@@ -15,11 +15,11 @@ class_name PerturbationSystem
 
 ## Maximum grid-cell shift for spatial perturbations.
 ## Game grid is 80x45 over CONUS. 1 cell ≈ 30-60 km. Max 3 cells ≈ 90-180 km.
-const MAX_SPATIAL_SHIFT_CELLS := 12
+const MAX_SPATIAL_SHIFT_CELLS := 18
 
 ## Wind speed scale range (fraction of original speed).
 ## 0.85 = 15% weaker, 1.15 = 15% stronger.
-const WIND_SCALE_MIN := 0.50
+const WIND_SCALE_MIN := 0.65
 const WIND_SCALE_MAX := 1.65
 
 ## Dewpoint anomaly scale range.
@@ -31,6 +31,10 @@ const MOISTURE_SCALE_MAX := 1.60
 ## Shifts the entire MSLP field up or down.
 const PRESSURE_OFFSET_MIN := -8.0
 const PRESSURE_OFFSET_MAX := 8.0
+
+## CAPE scale range — scales anomaly from background
+const CAPE_SCALE_MIN := 0.85
+const CAPE_SCALE_MAX := 1.55
 
 ## Represents a single applied perturbation with human-readable description.
 class AppliedPerturbation:
@@ -157,7 +161,7 @@ static func apply(
 			var dir := "stronger" if scale > 1.0 else "weaker"
 			result.perturbations.append(AppliedPerturbation.new(
 				"wind_scale",
-				"Upper-level winds " + str(pct) + "% " + dir,
+				"Upper-level Winds " + str(pct) + "% " + dir,
 				scale
 			))
 
@@ -187,9 +191,28 @@ static func apply(
 			var mb_str := str(snappedf(absf(offset), 0.5))
 			result.perturbations.append(AppliedPerturbation.new(
 				"pressure_shift",
-				"Surface low " + str(mb_str) + " mb " + dir,
+				"Surface Low " + str(mb_str) + " mb " + dir,
 				offset
 			))
+			
+	# ── 5. CAPE Perturbation ──────────────────────────────
+	if enable_wind and result.wind_data.has("SBCAPE"):
+		var scale := rng.randf_range(CAPE_SCALE_MIN, CAPE_SCALE_MAX)
+		
+		if absf(scale - 1.0) > 0.03:
+			_scale_cape_anomaly(result.wind_data["SBCAPE"], scale)
+			
+			var pct := int(round(absf(scale - 1.0) * 100.0))
+			var dir := "higher" if scale > 1.0 else "lower"
+			result.perturbations.append(AppliedPerturbation.new(
+				"cape_scale",
+				"CAPE Values " + str(pct) + "% " + dir,
+				scale
+			))
+	if result.wind_data.has("MLCAPE"):
+		var ml_scale := rng.randf_range(CAPE_SCALE_MIN, CAPE_SCALE_MAX)
+		if absf(ml_scale - 1.0) > 0.03:
+			_scale_cape_anomaly(result.wind_data["MLCAPE"], ml_scale)
 
 	return result
 
@@ -258,6 +281,17 @@ static func _scale_dewpoint_anomaly(data: AtmosphereData, scale: float) -> void:
 	for i in range(n):
 		var anomaly := data.values[i] - mean
 		data.values[i] = mean + anomaly * scale
+
+## Scale CAPE anomaly relative to a background threshold.
+## Values below 100 J/kg are treated as background and left unchanged.
+static func _scale_cape_anomaly(data: AtmosphereData, scale: float) -> void:
+	var background := 100.0
+	var n := data.grid_width * data.grid_height
+	for i in range(n):
+		var anomaly := data.values[i] - background
+		if anomaly > 0.0:
+			data.values[i] = background + anomaly * scale
+		data.values[i] = maxf(data.values[i], 0.0)
 
 ## Add a constant offset to all values in a field.
 static func _offset_field(data: AtmosphereData, offset: float) -> void:

@@ -15,8 +15,12 @@ var _visible_overlay := true
 
 var _ramp_map: Dictionary = {
 	"SBCAPE": AtmosphereData.sbcape_stops,
+	"MLCAPE": AtmosphereData.mlcape_stops,
+	"CINH":   AtmosphereData.cinh_stops,
+	"SHR03":  AtmosphereData.bulk_shear_stops,
 	"SHR06":  AtmosphereData.bulk_shear_stops,
 	"SFTD":   AtmosphereData.dewpoint_stops,
+	"SRH01":  AtmosphereData.srh03_stops,
 	"SRH03":  AtmosphereData.srh03_stops,
 	"200MB":  AtmosphereData.wind_200mb_stops,
 	"300MB":  AtmosphereData.wind_200mb_stops,

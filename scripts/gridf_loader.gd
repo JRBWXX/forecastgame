@@ -104,14 +104,30 @@ static func load_scenario(scenario_dir: String) -> Dictionary:
 	if shear:
 		wind_data["SHR06"] = shear
 
+	var shear03 := load_file(scenario_dir + "/shear_03.gridf")
+	if shear03:
+		wind_data["SHR03"] = shear03
+
 	# Derived Products
 	var cape := load_file(scenario_dir + "/sbcape.gridf")
 	if cape:
 		wind_data["SBCAPE"] = cape
+	
+	var mlcape := load_file(scenario_dir + "/mlcape.gridf")
+	if mlcape:
+		wind_data["MLCAPE"] = mlcape
 		
+	var cinh := load_file(scenario_dir + "/cinh.gridf")
+	if cinh:
+		wind_data["CINH"] = cinh
+	
 	var srh := load_file(scenario_dir + "/srh03.gridf")
 	if srh:
 		wind_data["SRH03"] = srh
+	
+	var srh01 := load_file(scenario_dir + "/srh01.gridf")
+	if srh01:
+		wind_data["SRH01"] = srh01
 
 	return {
 		"wind_data": wind_data,

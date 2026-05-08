@@ -180,7 +180,11 @@ def get_var(nc: Dataset, *names) -> np.ndarray:
     """Try multiple variable name candidates."""
     for name in names:
         if name in nc.variables:
-            return np.array(nc.variables[name][0], dtype=np.float32)
+            data = nc.variables[name][0]
+            # Handle masked arrays — replace masked values with 0
+            if hasattr(data, 'filled'):
+                data = data.filled(0.0)
+            return np.array(data, dtype=np.float32)
     raise KeyError(f"None of {names} found in {list(nc.variables.keys())}")
 
 def get_var_level(nc: Dataset, varname: str, level_mb: int) -> np.ndarray:
@@ -193,6 +197,115 @@ def get_lats_lons(nc: Dataset):
     lats = np.array(nc.variables['latitude'][:])
     lons = np.array(nc.variables['longitude'][:])
     return lats, lons
+
+def compute_mlcape(temp_pl: np.ndarray, q_pl: np.ndarray,
+                   pressure_levels: np.ndarray) -> np.ndarray:
+    """
+    Compute Mixed-Layer CAPE using the lowest 100 hPa mixed-layer parcel.
+    Applies virtual temperature correction (Tv = T * (1 + 0.608*q)).
+    temp_pl, q_pl: (n_levels, GRID_H, GRID_W)
+    """
+    nlat, nlon = temp_pl.shape[1], temp_pl.shape[2]
+    cape = np.zeros((nlat, nlon), dtype=np.float32)
+
+    A = 17.625
+    B = 243.04
+    Rd = 287.05
+    Cp = 1005.7
+    g = 9.81
+    Lv = 2.501e6
+
+    sort_idx = np.argsort(pressure_levels)[::-1]
+    pressure_levels = pressure_levels[sort_idx]
+    temp_pl = temp_pl[sort_idx]
+    q_pl = q_pl[sort_idx]
+
+    surface_p = 1000.0
+    ml_top_p = surface_p - 100.0
+
+    for j in range(nlat):
+        for i in range(nlon):
+            # Average T and q over lowest 100 hPa for mixed-layer parcel
+            ml_temps = []
+            ml_qs = []
+            for lev_idx in range(len(pressure_levels)):
+                p = float(pressure_levels[lev_idx])
+                if ml_top_p <= p <= surface_p:
+                    ml_temps.append(float(temp_pl[lev_idx, j, i]))
+                    ml_qs.append(float(q_pl[lev_idx, j, i]))
+
+            if not ml_temps:
+                continue
+
+            t_parcel = float(np.mean(ml_temps))
+            q_parcel = float(np.mean(ml_qs))
+            q_parcel = max(q_parcel, 0.0)
+
+            # Virtual temperature of parcel (Tv = T * (1 + 0.608*q))
+            tv_parcel = t_parcel * (1.0 + 0.608 * q_parcel)
+
+            # Dewpoint from q and surface pressure
+            e = q_parcel * surface_p / (0.622 + q_parcel)
+            e = max(e, 0.001)
+            td_c = (B * np.log(e / 6.112)) / (A - np.log(e / 6.112))
+            td_k = td_c + 273.15
+
+            # LCL
+            tlcl = 56.0 + 1.0 / (1.0 / (td_k - 56.0) + np.log(t_parcel / td_k) / 800.0)
+            plcl = surface_p * (tlcl / t_parcel) ** (Cp / Rd)
+
+            prev_p = surface_p
+            prev_t_parcel = t_parcel
+            prev_q_parcel = q_parcel
+            cape_val = 0.0
+
+            for lev_idx in range(len(pressure_levels)):
+                p = float(pressure_levels[lev_idx])
+                if p >= surface_p:
+                    continue
+                if p < 100.0:
+                    break
+
+                t_env = float(temp_pl[lev_idx, j, i])
+                q_env = max(float(q_pl[lev_idx, j, i]), 0.0)
+                # Virtual temperature of environment
+                tv_env = t_env * (1.0 + 0.608 * q_env)
+
+                dp = prev_p - p
+                if dp <= 0:
+                    continue
+
+                if prev_p > plcl:
+                    # Dry adiabatic lift
+                    t_parcel = prev_t_parcel * (p / prev_p) ** (Rd / Cp)
+                    q_parcel = prev_q_parcel  # q conserved below LCL
+                else:
+                    # Moist pseudo-adiabatic lift
+                    t_c_parcel = t_parcel - 273.15
+                    es = 6.112 * np.exp(A * t_c_parcel / (B + t_c_parcel))
+                    ws = 0.622 * es / max(p - es, 0.001)
+                    q_parcel = ws  # Saturated above LCL
+                    numer = Rd * t_parcel + Lv * ws
+                    denom = Cp + (Lv ** 2 * ws * 0.622) / (Rd * t_parcel ** 2)
+                    gamma_s = numer / (denom * p)
+                    t_parcel = t_parcel - gamma_s * dp
+
+                # Virtual temperature correction for buoyancy
+                tv_parcel = t_parcel * (1.0 + 0.608 * q_parcel)
+
+                if tv_parcel > tv_env:
+                    buoy = g * (tv_parcel - tv_env) / tv_env
+                    tv_avg = (tv_parcel + tv_env) / 2.0
+                    dz = (Rd * tv_avg / g) * np.log(prev_p / p)
+                    cape_val += buoy * dz
+
+                prev_p = p
+                prev_t_parcel = t_parcel
+                prev_q_parcel = q_parcel
+
+            cape[j, i] = cape_val
+
+    return np.clip(cape, 0.0, 10000.0)
 
 def compute_srh03(
     u_levels: dict, v_levels: dict,
@@ -273,7 +386,6 @@ def main() -> int:
 
     # ── Download ERA5 fields ─────────────────────────────────
 
-    # Pressure-level heights and winds
     pl_wind_hgt_file = str(data_dir / 'pl_wind_hgt.nc')
     download_era5(client, date_str, hour,
         variables=["geopotential", "u_component_of_wind", "v_component_of_wind"],
@@ -281,7 +393,6 @@ def main() -> int:
         output_path=pl_wind_hgt_file
     )
 
-    # Pressure-level data for CAPE (T, Q at many levels)
     cape_pl_file = str(data_dir / 'pl_cape.nc')
     download_era5(client, date_str, hour,
         variables=["temperature", "specific_humidity"],
@@ -289,7 +400,6 @@ def main() -> int:
         output_path=cape_pl_file
     )
 
-    # Pressure-level winds for SRH (925, 850, 700, 500)
     srh_pl_file = str(data_dir / 'pl_srh.nc')
     download_era5(client, date_str, hour,
         variables=["u_component_of_wind", "v_component_of_wind"],
@@ -297,7 +407,6 @@ def main() -> int:
         output_path=srh_pl_file
     )
 
-    # Single-level (surface) fields
     sfc_file = str(data_dir / 'sfc.nc')
     download_era5(client, date_str, hour,
         variables=[
@@ -306,21 +415,37 @@ def main() -> int:
             "2m_dewpoint_temperature",
             "10m_u_component_of_wind",
             "10m_v_component_of_wind",
-            "convective_available_potential_energy",  # native ERA5 CAPE
+            "convective_available_potential_energy",
+            "convective_inhibition",
         ],
         pressure_levels=[],
         output_path=sfc_file,
         single_level=True
     )
 
+    # ── Load pressure-level temperatures first (needed for SBCAPE + MLCAPE) ──
+
+    print("\nLoading pressure-level data for CAPE computation...")
+    pressure_level_list = [1000, 925, 850, 700, 600, 500, 400, 300, 250, 200]
+    with Dataset(cape_pl_file, 'r') as nc:
+        pl_lats_cape, pl_lons_cape = get_lats_lons(nc)
+        temp_pl_game = []
+        q_pl_game = []
+        for mb in pressure_level_list:
+            t_raw = get_var_level(nc, 't', mb)
+            q_raw = get_var_level(nc, 'q', mb)
+            temp_pl_game.append(project_to_game_grid(t_raw, pl_lats_cape, pl_lons_cape))
+            q_pl_game.append(project_to_game_grid(q_raw, pl_lats_cape, pl_lons_cape))
+        temp_pl_arr = np.array(temp_pl_game)
+        q_pl_arr = np.array(q_pl_game)
+
     # ── Process pressure level heights and winds ─────────────
 
-    print("\nProcessing pressure levels...")
+    print("Processing pressure levels...")
     with Dataset(pl_wind_hgt_file, 'r') as nc:
         lats, lons = get_lats_lons(nc)
         for mb in UA_LEVELS_MB:
             print(f"  {mb}mb...")
-            # Geopotential → decameters (divide by g=9.80665, then by 10)
             z = get_var_level(nc, 'z', mb)
             hgt_dam = z / (9.80665 * 10.0)
             hgt_grid = project_to_game_grid(hgt_dam, lats, lons)
@@ -339,18 +464,15 @@ def main() -> int:
     with Dataset(sfc_file, 'r') as nc:
         lats, lons = get_lats_lons(nc)
 
-        # MSLP (Pa → mb)
         mslp = get_var(nc, 'msl', 'mean_sea_level_pressure') / 100.0
         write_gridf(str(output_dir / 'pressure_SFC.gridf'),
                     project_to_game_grid(mslp, lats, lons))
 
-        # 2m dewpoint (K → °F)
         td2m_k = get_var(nc, 'd2m', '2m_dewpoint_temperature')
         td2m_f = (td2m_k - 273.15) * 9.0 / 5.0 + 32.0
         write_gridf(str(output_dir / 'dewpoint_SFC.gridf'),
                     project_to_game_grid(td2m_f, lats, lons))
 
-        # 10m winds
         u10 = get_var(nc, 'u10', '10m_u_component_of_wind')
         v10 = get_var(nc, 'v10', '10m_v_component_of_wind')
         u10_kt = project_to_game_grid(ms_to_knots(u10), lats, lons)
@@ -358,42 +480,80 @@ def main() -> int:
         speed10 = np.sqrt(u10_kt**2 + v10_kt**2)
         write_gridf(str(output_dir / 'wind_SFC.gridf'), speed10, u10_kt, v10_kt)
 
-        # Native ERA5 CAPE (J/kg) — no computation needed!
+        # Native ERA5 SBCAPE
         cape = get_var(nc, 'cape', 'convective_available_potential_energy')
         cape = np.clip(cape, 0.0, 10000.0).astype(np.float32)
         cape_grid = project_to_game_grid(cape, lats, lons)
         cape_grid = gaussian_filter(cape_grid, sigma=0.8).astype(np.float32)
         write_gridf(str(output_dir / 'sbcape.gridf'), cape_grid)
 
-        # SRH computed from wind profiles (ERA5 doesn't provide it natively)
-        print("  Computing SRH from wind profiles...")
-        with Dataset(srh_pl_file, 'r') as nc_srh:
-            pl_lats, pl_lons = get_lats_lons(nc_srh)
-            u_lvl = {}
-            v_lvl = {}
-            for mb in [925, 850, 700, 500]: 
-                u_lvl[mb] = project_to_game_grid(
-                    get_var_level(nc_srh, 'u', mb), pl_lats, pl_lons)
-                v_lvl[mb] = project_to_game_grid(
-                    get_var_level(nc_srh, 'v', mb), pl_lats, pl_lons)
+        # Native ERA5 CIN
+        cin = get_var(nc, 'cin', 'convective_inhibition')
+        # ERA5 assigns large fill values where CIN is undefined (no CAPE).
+        # Mask anything more negative than -1000 J/kg as zero before abs().
+        cin = np.where(cin < -1000.0, 0.0, cin)
+        cin = np.abs(cin).astype(np.float32)
+        cin = np.clip(cin, 0.0, 1000.0).astype(np.float32)
+        cin_grid = project_to_game_grid(cin, lats, lons)
+        cin_grid = gaussian_filter(cin_grid, sigma=0.8).astype(np.float32)
+        write_gridf(str(output_dir / 'cinh.gridf'), cin_grid)
+
+        # Surface winds in m/s for SRH computation
         u10_ms_game = project_to_game_grid(u10, lats, lons)
         v10_ms_game = project_to_game_grid(v10, lats, lons)
-        srh_grid = compute_srh03(u_lvl, v_lvl, u10_ms_game, v10_ms_game)
-        write_gridf(str(output_dir / 'srh03.gridf'), srh_grid)
 
-    # ── Bulk shear (0-6km) ───────────────────────────────────
+    # ── MLCAPE — computed from pressure-level temps ──────────
+
+    print("  Computing MLCAPE...")
+    mlcape_grid = compute_mlcape(temp_pl_arr, q_pl_arr,
+                                 np.array(pressure_level_list, dtype=np.float32))
+    mlcape_grid = gaussian_filter(mlcape_grid, sigma=0.8).astype(np.float32)
+    write_gridf(str(output_dir / 'mlcape.gridf'), mlcape_grid)
+
+    # ── SRH — load wind profiles once, compute both layers ───
+
+    print("  Computing SRH...")
+    with Dataset(srh_pl_file, 'r') as nc_srh:
+        pl_lats, pl_lons = get_lats_lons(nc_srh)
+        u_lvl = {}
+        v_lvl = {}
+        for mb in [925, 850, 700, 500]:
+            u_lvl[mb] = project_to_game_grid(
+                get_var_level(nc_srh, 'u', mb), pl_lats, pl_lons)
+            v_lvl[mb] = project_to_game_grid(
+                get_var_level(nc_srh, 'v', mb), pl_lats, pl_lons)
+
+    # 0-3km SRH (surface, 925, 850, 700mb)
+    srh_grid = compute_srh03(u_lvl, v_lvl, u10_ms_game, v10_ms_game)
+    write_gridf(str(output_dir / 'srh03.gridf'), srh_grid)
+
+    # 0-1km SRH (surface + 925mb only)
+    u_lvl_01 = {925: u_lvl[925]}
+    v_lvl_01 = {925: v_lvl[925]}
+    srh01_grid = compute_srh03(u_lvl_01, v_lvl_01, u10_ms_game, v10_ms_game)
+    write_gridf(str(output_dir / 'srh01.gridf'), srh01_grid)
+
+    # ── Bulk shear ───────────────────────────────────────────
+
     print("Processing bulk shear...")
     with Dataset(pl_wind_hgt_file, 'r') as nc:
         lats, lons = get_lats_lons(nc)
-        u500 = project_to_game_grid(
-            ms_to_knots(get_var_level(nc, 'u', 500)), lats, lons)
-        v500 = -project_to_game_grid(
-            ms_to_knots(get_var_level(nc, 'v', 500)), lats, lons)
+        u500 = project_to_game_grid(ms_to_knots(get_var_level(nc, 'u', 500)), lats, lons)
+        v500 = -project_to_game_grid(ms_to_knots(get_var_level(nc, 'v', 500)), lats, lons)
+        u700 = project_to_game_grid(ms_to_knots(get_var_level(nc, 'u', 700)), lats, lons)
+        v700 = -project_to_game_grid(ms_to_knots(get_var_level(nc, 'v', 700)), lats, lons)
 
+    # 0-6km shear (sfc to 500mb)
     shear_u = u500 - u10_kt
     shear_v = v500 - v10_kt
     shear_mag = np.sqrt(shear_u**2 + shear_v**2).astype(np.float32)
     write_gridf(str(output_dir / 'shear_06.gridf'), shear_mag, shear_u, shear_v)
+
+    # 0-3km shear (sfc to 700mb)
+    shear03_u = u700 - u10_kt
+    shear03_v = v700 - v10_kt
+    shear03_mag = np.sqrt(shear03_u**2 + shear03_v**2).astype(np.float32)
+    write_gridf(str(output_dir / 'shear_03.gridf'), shear03_mag, shear03_u, shear03_v)
 
     print(f"\nDone. Output files in {output_dir}/")
     for f in sorted(output_dir.glob('*.gridf')):

@@ -20,13 +20,16 @@ var _current_scenario_id: String = ""
 var _current_perturbation: PerturbationSystem.PerturbationResult = null
 
 var _param_list: Array[String] = [
-	"SBCAPE", "SHR06", "SRH03", "SFTD",
+	"SBCAPE", "MLCAPE", "CINH",
+	"SHR06", "SHR03", "SRH03", "SRH01", "SFTD",
 	"200MB", "300MB", "500MB", "700MB", "850MB", "925MB", "SFC"
 ]
 var _current_param_index: int = 0
 
 const PARAM_UNITS: Dictionary = {
-	"SBCAPE": " J/kg", "SHR06": " kt", "SFTD": " °F", "SRH03": " m²/s²",
+	"SBCAPE": " J/kg", "MLCAPE": " J/kg", "CINH": " J/kg",
+	"SHR03":  " kt", "SHR06": " kt", "SFTD": " °F", 
+	"SRH03": " m²/s²", "SRH01":  " m²/s²",
 	"200MB": " kt", "300MB": " kt", "500MB": " kt",
 	"700MB": " kt", "850MB": " kt", "925MB": " kt", "SFC": " kt",
 }
@@ -43,8 +46,12 @@ const CONTOUR_CONFIG: Dictionary = {
 
 const PARAM_RAMPS: Dictionary = {
 	"SBCAPE": "sbcape_stops",
+	"MLCAPE": "mlcape_stops",
+	"CINH":   "cinh_stops",
+	"SHR03":  "bulk_shear_stops",
 	"SHR06":  "bulk_shear_stops",
 	"SFTD":   "dewpoint_stops",
+	"SRH01":  "srh03_stops",
 	"SRH03":  "srh03_stops",
 	"200MB":  "wind_200mb_stops",
 	"300MB":  "wind_200mb_stops",
@@ -196,6 +203,8 @@ func _update_legend(param_name: String) -> void:
 func _get_ramp_stops(ramp_name: String) -> Array[Dictionary]:
 	match ramp_name:
 		"sbcape_stops":       return AtmosphereData.sbcape_stops
+		"mlcape_stops":       return AtmosphereData.mlcape_stops
+		"cinh_stops":         return AtmosphereData.cinh_stops
 		"bulk_shear_stops":   return AtmosphereData.bulk_shear_stops
 		"dewpoint_stops":     return AtmosphereData.dewpoint_stops
 		"srh03_stops":        return AtmosphereData.srh03_stops

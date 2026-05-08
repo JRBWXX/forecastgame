@@ -14,11 +14,11 @@ signal scenario_drawer_requested
 const PARAM_GROUPS: Array[Dictionary] = [
 	{
 		"label": "Instability",
-		"params": ["SBCAPE"],
+		"params": ["SBCAPE", "MLCAPE", "CINH"],
 	},
 	{
 		"label": "Kinematics",
-		"params": ["SHR06", "SRH03"],
+		"params": ["SHR06", "SHR03", "SRH03", "SRH01"],
 	},
 	{
 		"label": "Moisture",
@@ -32,15 +32,19 @@ const PARAM_GROUPS: Array[Dictionary] = [
 
 const PARAM_FULL_NAMES: Dictionary = {
 	"SBCAPE": "CAPE - Surface-Based",
-	"SHR06":  "Bulk Shear - 0-6km",
+	"MLCAPE": "CAPE - Mixed Layer",
+	"CINH":   "CINH - Surface-Based",
+	"SHR06":  "Bulk Shear - Sfc-6km",
+	"SHR03":  "Bulk Shear - Sfc-3km",
 	"SRH03":  "SR Helicity - 0-3km",
-	"SFTD":   "Dwpt",
-	"200MB":  "200mb Analysis",
-	"300MB":  "300mb Analysis",
-	"500MB":  "500mb Analysis",
-	"700MB":  "700mb Analysis",
-	"850MB":  "850mb Analysis",
-	"925MB":  "925mb Analysis",
+	"SRH01":  "SR Helicity - 0-1km",
+	"SFTD":   "Dewpoints - Surface",
+	"200MB":  "200 mb Analysis",
+	"300MB":  "300 mb Analysis",
+	"500MB":  "500 mb Analysis",
+	"700MB":  "700 mb Analysis",
+	"850MB":  "850 mb Analysis",
+	"925MB":  "925 mb Analysis",
 	"SFC":    "MSL Pressure/Wind",
 }
 
