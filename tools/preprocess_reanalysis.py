@@ -371,7 +371,7 @@ def main() -> int:
             pl_lats, pl_lons = get_lats_lons(nc_srh)
             u_lvl = {}
             v_lvl = {}
-            for mb in [925, 850, 700, 500]:
+            for mb in [925, 850, 700, 500]: 
                 u_lvl[mb] = project_to_game_grid(
                     get_var_level(nc_srh, 'u', mb), pl_lats, pl_lons)
                 v_lvl[mb] = project_to_game_grid(

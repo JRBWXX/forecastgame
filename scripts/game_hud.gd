@@ -31,17 +31,17 @@ const PARAM_GROUPS: Array[Dictionary] = [
 ]
 
 const PARAM_FULL_NAMES: Dictionary = {
-	"SBCAPE": "Surface-Based CAPE",
-	"SHR06":  "0-6km Bulk Shear",
-	"SRH03":  "0-3km Storm-Relative Helicity",
-	"SFTD":   "Surface Dewpoints",
-	"200MB":  "200mb Winds",
-	"300MB":  "300mb Winds",
-	"500MB":  "500mb Winds",
-	"700MB":  "700mb Winds",
-	"850MB":  "850mb Winds",
-	"925MB":  "925mb Winds",
-	"SFC":    "Surface Winds",
+	"SBCAPE": "CAPE - Surface-Based",
+	"SHR06":  "Bulk Shear - 0-6km",
+	"SRH03":  "SR Helicity - 0-3km",
+	"SFTD":   "Dwpt",
+	"200MB":  "200mb Analysis",
+	"300MB":  "300mb Analysis",
+	"500MB":  "500mb Analysis",
+	"700MB":  "700mb Analysis",
+	"850MB":  "850mb Analysis",
+	"925MB":  "925mb Analysis",
+	"SFC":    "MSL Pressure/Wind",
 }
 
 # Drawing tool entries: label, category (-1 = none/cursor)
@@ -118,7 +118,7 @@ func _build_param_dropdown() -> void:
 		# Add separator with group name
 		_param_dropdown.add_separator(group["label"])
 		for param in group["params"]:
-			_param_dropdown.add_item(param + "  " + PARAM_FULL_NAMES.get(param, ""))
+			_param_dropdown.add_item(PARAM_FULL_NAMES.get(param, param))
 			var idx := _param_dropdown.item_count - 1
 			_param_dropdown.set_item_metadata(idx, param)
 

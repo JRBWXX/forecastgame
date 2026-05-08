@@ -14,23 +14,23 @@ class_name PerturbationSystem
 # ── Perturbation bounds ────────────────────────────────────
 
 ## Maximum grid-cell shift for spatial perturbations.
-## At 2.5° resolution, 1 grid cell ≈ ~175 km. Max 3 cells ≈ ~525 km.
-const MAX_SPATIAL_SHIFT_CELLS := 3
+## Game grid is 80x45 over CONUS. 1 cell ≈ 30-60 km. Max 3 cells ≈ 90-180 km.
+const MAX_SPATIAL_SHIFT_CELLS := 12
 
 ## Wind speed scale range (fraction of original speed).
 ## 0.85 = 15% weaker, 1.15 = 15% stronger.
-const WIND_SCALE_MIN := 0.75
-const WIND_SCALE_MAX := 1.45
+const WIND_SCALE_MIN := 0.50
+const WIND_SCALE_MAX := 1.65
 
 ## Dewpoint anomaly scale range.
 ## Applied to the anomaly from a base value, not the absolute dewpoint.
 const MOISTURE_SCALE_MIN := 0.60
-const MOISTURE_SCALE_MAX := 1.40
+const MOISTURE_SCALE_MAX := 1.60
 
 ## Surface pressure offset range (mb).
 ## Shifts the entire MSLP field up or down.
-const PRESSURE_OFFSET_MIN := -6.0
-const PRESSURE_OFFSET_MAX := 6.0
+const PRESSURE_OFFSET_MIN := -8.0
+const PRESSURE_OFFSET_MAX := 8.0
 
 ## Represents a single applied perturbation with human-readable description.
 class AppliedPerturbation:
