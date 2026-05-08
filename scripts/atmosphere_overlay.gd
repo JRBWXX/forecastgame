@@ -15,16 +15,16 @@ var _visible_overlay := true
 
 var _ramp_map: Dictionary = {
 	"SBCAPE": AtmosphereData.sbcape_stops,
-	"SHR06": AtmosphereData.bulk_shear_stops,
-	"SFTD": AtmosphereData.dewpoint_stops,
-	"SRH03": AtmosphereData.srh03_stops,
-	"200MB": AtmosphereData.wind_200mb_stops,
-	"300MB": AtmosphereData.wind_200mb_stops,
-	"500MB": AtmosphereData.bulk_shear_stops,
-	"700MB": AtmosphereData.wind_700mb_stops,
-	"850MB": AtmosphereData.wind_700mb_stops,
-	"925MB": AtmosphereData.wind_925mb_stops,
-	"SFC": AtmosphereData.wind_sfc_stops,
+	"SHR06":  AtmosphereData.bulk_shear_stops,
+	"SFTD":   AtmosphereData.dewpoint_stops,
+	"SRH03":  AtmosphereData.srh03_stops,
+	"200MB":  AtmosphereData.wind_200mb_stops,
+	"300MB":  AtmosphereData.wind_200mb_stops,
+	"500MB":  AtmosphereData.bulk_shear_stops,
+	"700MB":  AtmosphereData.wind_700mb_stops,
+	"850MB":  AtmosphereData.wind_700mb_stops,
+	"925MB":  AtmosphereData.wind_925mb_stops,
+	"SFC":    AtmosphereData.wind_sfc_stops,
 }
 
 func _ready() -> void:

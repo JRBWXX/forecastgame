@@ -16,7 +16,6 @@ class_name GridFLoader
 ##       - u_values: float32 array
 ##       - v_values: float32 array
 
-
 ## Load a .gridf file and return an AtmosphereData instance, or null on error.
 static func load_file(path: String) -> AtmosphereData:
 	var f := FileAccess.open(path, FileAccess.READ)
