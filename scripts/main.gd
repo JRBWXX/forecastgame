@@ -21,18 +21,20 @@ var _current_perturbation: PerturbationSystem.PerturbationResult = null
 
 var _param_list: Array[String] = [
 	"SBCAPE", "MLCAPE", "MUCAPE", "CINH", "MUCINH", "MLLR", "LLLR",
-	"SHR06", "SHR03", "SRH03", "SRH01", "SFTD",
-	"200MB", "300MB", "500MB", "700MB", "850MB", "925MB", "SFC"
+	"SHR06", "SHR03", "SRH03", "SRH01", "ESRH", "EBWD", "SFTD",
+	"200MB", "300MB", "500MB", "700MB", "850MB", "925MB", "SFC", "SCP",
 ]
 var _current_param_index: int = 0
 
 const PARAM_UNITS: Dictionary = {
 	"SBCAPE": " J/kg", "MLCAPE": " J/kg", "MUCAPE": " J/kg", "CINH": " J/kg", "MUCINH": " J/kg",
 	"MLLR": " °C/km", "LLLR": " °C/km",
-	"SHR03":  " kt", "SHR06": " kt", "SFTD": " °F", 
+	"SHR03":  " kt", "SHR06": " kt", "ESRH": " m²/s²",
+	"EBWD": " m/s", "SFTD": " °F", 
 	"SRH03": " m²/s²", "SRH01":  " m²/s²",
 	"200MB": " kt", "300MB": " kt", "500MB": " kt",
 	"700MB": " kt", "850MB": " kt", "925MB": " kt", "SFC": " kt",
+	"SCP": "",
 }
 
 const CONTOUR_CONFIG: Dictionary = {
@@ -55,6 +57,8 @@ const PARAM_RAMPS: Dictionary = {
 	"LLLR":   "lapse_rate_ll_stops",
 	"SHR03":  "bulk_shear_stops",
 	"SHR06":  "bulk_shear_stops",
+	"ESRH":   "srh03_stops",
+	"EBWD":   "bulk_shear_stops",
 	"SFTD":   "dewpoint_stops",
 	"SRH01":  "srh03_stops",
 	"SRH03":  "srh03_stops",
@@ -65,6 +69,7 @@ const PARAM_RAMPS: Dictionary = {
 	"850MB":  "wind_700mb_stops",
 	"925MB":  "wind_925mb_stops",
 	"SFC":    "wind_sfc_stops",
+	"SCP":    "scp_stops",
 }
 
 func _ready() -> void:
@@ -221,6 +226,7 @@ func _get_ramp_stops(ramp_name: String) -> Array[Dictionary]:
 		"wind_700mb_stops":    return AtmosphereData.wind_700mb_stops
 		"wind_925mb_stops":    return AtmosphereData.wind_925mb_stops
 		"wind_sfc_stops":      return AtmosphereData.wind_sfc_stops
+		"scp_stops":           return AtmosphereData.scp_stops
 	return []
 
 # ── HUD signal handlers ─────────────────────────────────────

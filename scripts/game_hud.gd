@@ -18,7 +18,7 @@ const PARAM_GROUPS: Array[Dictionary] = [
 	},
 	{
 		"label": "Kinematics",
-		"params": ["SHR06", "SHR03", "SRH03", "SRH01"],
+		"params": ["SHR06", "SHR03", "SRH03", "SRH01", "ESRH", "EBWD"],
 	},
 	{
 		"label": "Moisture",
@@ -28,6 +28,10 @@ const PARAM_GROUPS: Array[Dictionary] = [
 		"label": "Upper Air",
 		"params": ["200MB", "300MB", "500MB", "700MB", "850MB", "925MB", "SFC"],
 	},
+	{
+		"label": "Composites",
+		"params": ["SCP"]
+	}
 ]
 
 const PARAM_FULL_NAMES: Dictionary = {
@@ -42,6 +46,8 @@ const PARAM_FULL_NAMES: Dictionary = {
 	"SHR03":  "Bulk Shear - Sfc-3km",
 	"SRH03":  "SR Helicity - 0-3km",
 	"SRH01":  "SR Helicity - 0-1km",
+	"ESRH":   "Eff. SR Helicity",
+	"EBWD":   "Eff. Bulk Wind Diff.",
 	"SFTD":   "Dewpoints - Surface",
 	"200MB":  "200 mb Analysis",
 	"300MB":  "300 mb Analysis",
@@ -50,6 +56,7 @@ const PARAM_FULL_NAMES: Dictionary = {
 	"850MB":  "850 mb Analysis",
 	"925MB":  "925 mb Analysis",
 	"SFC":    "MSL Pressure/Wind",
+	"SCP":    "Supercell Composite Parameter",
 }
 
 # Drawing tool entries: label, category (-1 = none/cursor)

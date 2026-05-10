@@ -23,6 +23,8 @@ var _ramp_map: Dictionary = {
 	"LLLR":   AtmosphereData.lapse_rate_ll_stops,
 	"SHR03":  AtmosphereData.bulk_shear_stops,
 	"SHR06":  AtmosphereData.bulk_shear_stops,
+	"ESRH":   AtmosphereData.srh03_stops,
+	"EBWD":   AtmosphereData.bulk_shear_stops,
 	"SFTD":   AtmosphereData.dewpoint_stops,
 	"SRH01":  AtmosphereData.srh03_stops,
 	"SRH03":  AtmosphereData.srh03_stops,
@@ -33,6 +35,7 @@ var _ramp_map: Dictionary = {
 	"850MB":  AtmosphereData.wind_700mb_stops,
 	"925MB":  AtmosphereData.wind_925mb_stops,
 	"SFC":    AtmosphereData.wind_sfc_stops,
+	"SCP":    AtmosphereData.scp_stops,
 }
 
 func _ready() -> void:

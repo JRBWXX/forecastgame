@@ -419,6 +419,21 @@ static var wind_sfc_stops: Array[Dictionary] = [
 	{ "val": 65.0,  "color": Color(0.28, 0.08, 0.05, 0.90) },
 ]
 
+static var scp_stops: Array[Dictionary] = [
+	{ "val": 0.0,  "color": Color(0.90, 0.92, 0.95, 0.0) },    # Transparent
+	{ "val": 1.0,  "color": Color(0.55, 0.80, 0.55, 0.45) },   # Light green
+	{ "val": 2.0,  "color": Color(0.25, 0.72, 0.30, 0.60) },   # Green
+	{ "val": 3.0,  "color": Color(0.82, 0.85, 0.20, 0.68) },   # Yellow-green
+	{ "val": 4.0,  "color": Color(0.95, 0.80, 0.05, 0.74) },   # Yellow
+	{ "val": 5.0,  "color": Color(0.98, 0.62, 0.00, 0.78) },   # Orange
+	{ "val": 7.0,  "color": Color(0.95, 0.38, 0.00, 0.82) },   # Dark orange
+	{ "val": 10.0, "color": Color(0.88, 0.12, 0.00, 0.86) },   # Red
+	{ "val": 15.0, "color": Color(0.62, 0.00, 0.05, 0.89) },   # Dark red
+	{ "val": 20.0, "color": Color(0.48, 0.00, 0.35, 0.91) },   # Maroon
+	{ "val": 30.0, "color": Color(0.35, 0.05, 0.55, 0.93) },   # Purple
+	{ "val": 50.0, "color": Color(0.20, 0.02, 0.35, 0.95) },   # Dark purple
+]
+
 static func color_from_ramp(val: float, stops: Array[Dictionary]) -> Color:
 	if val <= stops[0]["val"]:
 		return stops[0]["color"]

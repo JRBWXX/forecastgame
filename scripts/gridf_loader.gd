@@ -144,6 +144,18 @@ static func load_scenario(scenario_dir: String) -> Dictionary:
 	var srh01 := load_file(scenario_dir + "/srh01.gridf")
 	if srh01:
 		wind_data["SRH01"] = srh01
+		
+	var esrh := load_file(scenario_dir + "/esrh.gridf")
+	if esrh:
+		wind_data["ESRH"] = esrh
+
+	var ebwd := load_file(scenario_dir + "/ebwd.gridf")
+	if ebwd:
+		wind_data["EBWD"] = ebwd
+		
+	var scp := load_file(scenario_dir + "/scp.gridf")
+	if scp:
+		wind_data["SCP"] = scp
 
 	return {
 		"wind_data": wind_data,

@@ -492,6 +492,253 @@ def compute_srh03(
 
     return srh
 
+def compute_esrh_ebwd(temp_pl: np.ndarray, q_pl: np.ndarray,
+                       pressure_levels: np.ndarray,
+                       u_pl: np.ndarray, v_pl: np.ndarray,
+                       wind_pressure_levels: np.ndarray,
+                       u_sfc: np.ndarray, v_sfc: np.ndarray
+                       ) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Compute Effective SRH and Effective Bulk Wind Difference.
+
+    temp_pl, q_pl:              (n_cape_levels, H, W) on pressure_levels
+    u_pl, v_pl:                 (n_wind_levels, H, W) on wind_pressure_levels
+    u_sfc, v_sfc:               (H, W) surface 10m winds in m/s
+    pressure_levels:            descending (1000->200)
+    wind_pressure_levels:       descending (1000->300)
+
+    Returns (esrh, ebwd) where ebwd is in m/s
+    """
+    nlat, nlon = temp_pl.shape[1], temp_pl.shape[2]
+    esrh = np.zeros((nlat, nlon), dtype=np.float32)
+    ebwd = np.zeros((nlat, nlon), dtype=np.float32)
+
+    A = 17.625
+    B = 243.04
+    Rd = 287.05
+    Cp = 1005.7
+    g  = 9.81
+    Lv = 2.501e6
+
+    # Sort cape levels descending
+    sort_idx = np.argsort(pressure_levels)[::-1]
+    pressure_levels = pressure_levels[sort_idx]
+    temp_pl = temp_pl[sort_idx]
+    q_pl    = q_pl[sort_idx]
+
+    # Sort wind levels descending
+    wsort_idx = np.argsort(wind_pressure_levels)[::-1]
+    wind_pressure_levels = wind_pressure_levels[wsort_idx]
+    u_pl = u_pl[wsort_idx]
+    v_pl = v_pl[wsort_idx]
+
+    # Helper: lift parcel from start_p, return (cape, cin, el_pressure)
+    def lift_parcel(j: int, i: int, start_p: float) -> tuple[float, float, float]:
+        start_idx = int(np.argmin(np.abs(pressure_levels - start_p)))
+        t_parcel = float(temp_pl[start_idx, j, i])
+        q_parcel = max(float(q_pl[start_idx, j, i]), 0.0)
+
+        e = q_parcel * start_p / (0.622 + q_parcel)
+        e = max(e, 0.001)
+        td_c = (B * np.log(e / 6.112)) / (A - np.log(e / 6.112))
+        td_k = td_c + 273.15
+        tlcl = 56.0 + 1.0 / (1.0 / (td_k - 56.0) + np.log(t_parcel / td_k) / 800.0)
+        plcl = start_p * (tlcl / t_parcel) ** (Cp / Rd)
+
+        prev_p = start_p
+        prev_t = t_parcel
+        prev_q = q_parcel
+        cape_val = 0.0
+        cin_val  = 0.0
+        lfc_found = False
+        el_p = start_p  # Default EL to start level if no LFC found
+
+        for lev_idx in range(len(pressure_levels)):
+            p = float(pressure_levels[lev_idx])
+            if p >= start_p:
+                continue
+            if p < 100.0:
+                break
+
+            t_env = float(temp_pl[lev_idx, j, i])
+            q_env = max(float(q_pl[lev_idx, j, i]), 0.0)
+            tv_env = t_env * (1.0 + 0.608 * q_env)
+
+            dp = prev_p - p
+            if dp <= 0:
+                continue
+
+            if prev_p > plcl:
+                t_parcel = prev_t * (p / prev_p) ** (Rd / Cp)
+                q_parcel = prev_q
+            else:
+                t_c_p = t_parcel - 273.15
+                es = 6.112 * np.exp(A * t_c_p / (B + t_c_p))
+                ws = 0.622 * es / max(p - es, 0.001)
+                q_parcel = ws
+                numer = Rd * t_parcel + Lv * ws
+                denom = Cp + (Lv**2 * ws * 0.622) / (Rd * t_parcel**2)
+                gamma_s = numer / (denom * p)
+                t_parcel = t_parcel - gamma_s * dp
+
+            tv_parcel = t_parcel * (1.0 + 0.608 * q_parcel)
+            t_avg = (tv_parcel + tv_env) / 2.0
+            dz = (Rd * t_avg / g) * np.log(prev_p / p)
+
+            if tv_parcel > tv_env:
+                lfc_found = True
+                buoy = g * (tv_parcel - tv_env) / tv_env
+                cape_val += buoy * dz
+                el_p = p  # Update EL to current level while parcel is buoyant
+            elif not lfc_found:
+                buoy = g * (tv_parcel - tv_env) / tv_env
+                cin_val += buoy * dz
+
+            prev_p = p
+            prev_t = t_parcel
+            prev_q = q_parcel
+
+        return cape_val, abs(cin_val), el_p
+
+    # Helper: interpolate wind at a given pressure level
+    def interp_wind(j: int, i: int, p_target: float) -> tuple[float, float]:
+        if p_target >= wind_pressure_levels[0]:
+            return float(u_sfc[j, i]), float(v_sfc[j, i])
+        if p_target <= wind_pressure_levels[-1]:
+            return float(u_pl[-1, j, i]), float(v_pl[-1, j, i])
+        for k in range(len(wind_pressure_levels) - 1):
+            p_lo = wind_pressure_levels[k]
+            p_hi = wind_pressure_levels[k + 1]
+            if p_hi <= p_target <= p_lo:
+                t = (p_lo - p_target) / (p_lo - p_hi)
+                u = float(u_pl[k, j, i]) * (1 - t) + float(u_pl[k+1, j, i]) * t
+                v = float(v_pl[k, j, i]) * (1 - t) + float(v_pl[k+1, j, i]) * t
+                return u, v
+        return float(u_sfc[j, i]), float(v_sfc[j, i])
+
+    # Candidate levels for effective inflow base search
+    inflow_candidates = [p for p in pressure_levels if 700.0 <= p <= 1000.0]
+    # Bunkers levels for storm motion
+    bunkers_levels = [p for p in wind_pressure_levels if 500.0 <= p <= 925.0]
+
+    for j in range(nlat):
+        for i in range(nlon):
+            # ── Find effective inflow layer ──────────────────
+            eff_base_p = None
+            eff_top_p  = None
+
+            for p in inflow_candidates:
+                cape_val, cin_val, _ = lift_parcel(j, i, p)
+                if cape_val >= 100.0 and cin_val <= 250.0:
+                    if eff_base_p is None:
+                        eff_base_p = p
+                    eff_top_p = p  # Keep updating — highest qualifying level
+
+            # No effective inflow layer — leave as zero
+            if eff_base_p is None or eff_top_p is None or eff_base_p == eff_top_p:
+                continue
+
+            # ── Find EL of most unstable parcel ─────────────
+            # Use the inflow base as the MU parcel starting level
+            _, _, el_p = lift_parcel(j, i, eff_base_p)
+
+            # ── Compute Bunkers right-mover storm motion ─────
+            sum_u, sum_v = float(u_sfc[j, i]), float(v_sfc[j, i])
+            count = 1
+            for p in bunkers_levels:
+                pidx = int(np.argmin(np.abs(wind_pressure_levels - p)))
+                sum_u += float(u_pl[pidx, j, i])
+                sum_v += float(v_pl[pidx, j, i])
+                count += 1
+            mean_u = sum_u / count
+            mean_v = sum_v / count
+
+            # Shear vector: 500mb minus surface
+            pidx_500 = int(np.argmin(np.abs(wind_pressure_levels - 500.0)))
+            shear_u = float(u_pl[pidx_500, j, i]) - float(u_sfc[j, i])
+            shear_v = float(v_pl[pidx_500, j, i]) - float(v_sfc[j, i])
+            shear_mag = float(np.sqrt(shear_u**2 + shear_v**2))
+            if shear_mag < 0.001:
+                continue
+
+            rm_u = mean_u + 7.5 * (shear_v / shear_mag)
+            rm_v = mean_v - 7.5 * (shear_u / shear_mag)
+
+            # ── ESRH: integrate hodograph in effective layer ─
+            # Build hodograph points from eff_base to eff_top
+            hodo_levels = [p for p in wind_pressure_levels
+                           if eff_top_p <= p <= eff_base_p]
+            if len(hodo_levels) < 2:
+                # Layer too thin — add interpolated endpoints
+                hodo_levels = [eff_base_p, eff_top_p]
+
+            srh_val = 0.0
+            prev_u, prev_v = interp_wind(j, i, hodo_levels[0])
+            for k in range(1, len(hodo_levels)):
+                curr_u, curr_v = interp_wind(j, i, hodo_levels[k])
+                sr_u0 = prev_u - rm_u
+                sr_v0 = prev_v - rm_v
+                sr_u1 = curr_u - rm_u
+                sr_v1 = curr_v - rm_v
+                srh_val -= (sr_u0 * sr_v1 - sr_v0 * sr_u1)
+                prev_u, prev_v = curr_u, curr_v
+
+            esrh[j, i] = max(0.0, srh_val)
+
+            # ── EBWD: wind difference base to 50% EL height ─
+            # Mid-storm level approximated as halfway between
+            # inflow base and EL in pressure space
+            mid_p = (eff_base_p + el_p) / 2.0
+            u_base, v_base = interp_wind(j, i, eff_base_p)
+            u_mid,  v_mid  = interp_wind(j, i, mid_p)
+            ebwd_u = u_mid  - u_base
+            ebwd_v = v_mid  - v_base
+            ebwd[j, i] = float(np.sqrt(ebwd_u**2 + ebwd_v**2))
+
+    return (np.clip(esrh, 0.0, 3000.0).astype(np.float32),
+            np.clip(ebwd, 0.0,  100.0).astype(np.float32))
+
+def compute_scp(mucape: np.ndarray, mucin: np.ndarray,
+                esrh: np.ndarray, ebwd: np.ndarray) -> np.ndarray:
+    """
+    Supercell Composite Parameter (SCP).
+
+    SCP = (muCAPE / 1000) * (ESRH / 50) * (EBWD_term) * (muCIN_term)
+
+    EBWD_term:
+        < 10 m/s -> 0
+        10-20 m/s -> EBWD / 20
+        > 20 m/s -> 1.0
+
+    muCIN_term:
+        muCIN > 40 J/kg -> 1.0 (weak cap, no penalty)
+        else            -> -40 / (-muCIN) = 40 / muCIN
+
+    Only positive values retained (right-mover supercells).
+    """
+    # CAPE term
+    cape_term = mucape / 1000.0
+
+    # ESRH term
+    srh_term = esrh / 50.0
+
+    # EBWD term
+    ebwd_term = np.where(ebwd < 10.0, 0.0,
+                np.where(ebwd > 20.0, 1.0,
+                         ebwd / 20.0))
+
+    # muCIN term - 1.0 when CIN is weak, penalizes strong caps
+    # mucin is stored as positive magnitude
+    mucin_safe = np.where(mucin < 1.0, 1.0, mucin)
+    cin_term = np.where(mucin <= 40.0, 1.0, 40.0 / mucin_safe)
+
+    scp = cape_term * srh_term * ebwd_term * cin_term
+
+    # Only positive values (right-moving supercells)
+    scp = np.where(scp < 0.0, 0.0, scp)
+
+    return np.clip(scp, 0.0, 50.0).astype(np.float32)
+
 def main() -> int:
     if len(sys.argv) < 4:
         print(__doc__)
@@ -530,10 +777,12 @@ def main() -> int:
 
     srh_pl_file = str(data_dir / 'pl_srh.nc')
     download_era5(client, date_str, hour,
-        variables=["u_component_of_wind", "v_component_of_wind"],
-        pressure_levels=[925, 850, 700, 500],
-        output_path=srh_pl_file
-    )
+                  variables=["u_component_of_wind", "v_component_of_wind"],
+                  pressure_levels=[1000, 975, 950, 925, 900, 875, 850, 825,
+                                   800, 775, 750, 700, 650, 600, 550, 500,
+                                   450, 400, 350, 300],
+                  output_path=srh_pl_file
+                  )
 
     sfc_file = str(data_dir / 'sfc.nc')
     download_era5(client, date_str, hour,
@@ -724,6 +973,39 @@ def main() -> int:
     lr_ll = compute_lapse_rate(t700_game, t2m_game, z700_m, z_sfc)
     lr_ll = gaussian_filter(lr_ll, sigma=0.8).astype(np.float32)
     write_gridf(str(output_dir / 'lr_lowlevel.gridf'), lr_ll)
+
+    # ── ESRH and EBWD ────────────────────────────────────────
+    print("  Computing ESRH and EBWD...")
+    with Dataset(srh_pl_file, 'r') as nc_srh:
+        pl_lats_srh, pl_lons_srh = get_lats_lons(nc_srh)
+        wind_pressure_levels_arr = np.array(
+            nc_srh.variables['pressure_level'][:], dtype=np.float32)
+        n_wind_levels = len(wind_pressure_levels_arr)
+        u_pl_game = np.zeros((n_wind_levels, GRID_H, GRID_W), dtype=np.float32)
+        v_pl_game = np.zeros((n_wind_levels, GRID_H, GRID_W), dtype=np.float32)
+        for k in range(n_wind_levels):
+            u_raw = np.array(nc_srh.variables['u'][0, k, :, :], dtype=np.float32)
+            v_raw = np.array(nc_srh.variables['v'][0, k, :, :], dtype=np.float32)
+            u_pl_game[k] = project_to_game_grid(u_raw, pl_lats_srh, pl_lons_srh)
+            v_pl_game[k] = project_to_game_grid(v_raw, pl_lats_srh, pl_lons_srh)
+
+    esrh_grid, ebwd_grid = compute_esrh_ebwd(
+        temp_pl_arr, q_pl_arr,
+        np.array(pressure_level_list, dtype=np.float32),
+        u_pl_game, v_pl_game,
+        wind_pressure_levels_arr,
+        u10_ms_game, v10_ms_game
+    )
+    esrh_grid = gaussian_filter(esrh_grid, sigma=0.8).astype(np.float32)
+    ebwd_grid = gaussian_filter(ebwd_grid, sigma=0.8).astype(np.float32)
+    write_gridf(str(output_dir / 'esrh.gridf'), esrh_grid)
+    write_gridf(str(output_dir / 'ebwd.gridf'), ebwd_grid)
+
+    # ── Supercell Composite Parameter ───────────────────────
+    print("  Computing SCP...")
+    scp_grid = compute_scp(mucape_grid, mucin_grid, esrh_grid, ebwd_grid)
+    scp_grid = gaussian_filter(scp_grid, sigma=0.5).astype(np.float32)
+    write_gridf(str(output_dir / 'scp.gridf'), scp_grid)
 
     print(f"\nDone. Output files in {output_dir}/")
     for f in sorted(output_dir.glob('*.gridf')):
