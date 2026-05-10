@@ -170,6 +170,41 @@ static var cinh_stops: Array[Dictionary] = [
 	{ "val": 500.0, "color": Color(0.28, 0.08, 0.05, 0.90) },    # Very dark brown
 ]
 
+## MUCAPE — same color ramp as SBCAPE
+static var mucape_stops: Array[Dictionary] = [
+	{ "val": 0.0,    "color": Color(0.95, 0.95, 0.95, 0.0) },
+	{ "val": 100.0,  "color": Color(0.92, 0.92, 0.90, 0.40) },
+	{ "val": 250.0,  "color": Color(0.93, 0.93, 0.80, 0.55) },
+	{ "val": 500.0,  "color": Color(0.94, 0.91, 0.55, 0.70) },
+	{ "val": 750.0,  "color": Color(0.91, 0.85, 0.22, 0.75) },
+	{ "val": 1000.0, "color": Color(0.90, 0.73, 0.10, 0.78) },
+	{ "val": 1500.0, "color": Color(0.97, 0.60, 0.00, 0.80) },
+	{ "val": 2000.0, "color": Color(0.93, 0.40, 0.00, 0.82) },
+	{ "val": 2500.0, "color": Color(0.82, 0.08, 0.00, 0.85) },
+	{ "val": 3000.0, "color": Color(0.62, 0.00, 0.00, 0.85) },
+	{ "val": 3500.0, "color": Color(0.42, 0.00, 0.05, 0.85) },
+	{ "val": 4000.0, "color": Color(0.48, 0.12, 0.55, 0.85) },
+	{ "val": 5000.0, "color": Color(0.73, 0.52, 0.82, 0.85) },
+	{ "val": 6000.0, "color": Color(0.30, 0.72, 0.72, 0.85) },
+	{ "val": 7000.0, "color": Color(0.05, 0.42, 0.42, 0.85) },
+	{ "val": 8500.0, "color": Color(0.15, 0.02, 0.02, 0.90) },
+]
+
+## MUCIN — same color ramp as CINH
+static var mucinh_stops: Array[Dictionary] = [
+	{ "val": 0.0,   "color": Color(0.90, 0.92, 0.95, 0.0) },
+	{ "val": 10.0,  "color": Color(0.80, 0.88, 0.72, 0.35) },
+	{ "val": 25.0,  "color": Color(0.65, 0.82, 0.55, 0.50) },
+	{ "val": 50.0,  "color": Color(0.88, 0.85, 0.40, 0.62) },
+	{ "val": 75.0,  "color": Color(0.95, 0.72, 0.15, 0.70) },
+	{ "val": 100.0, "color": Color(0.95, 0.55, 0.00, 0.75) },
+	{ "val": 150.0, "color": Color(0.90, 0.35, 0.00, 0.80) },
+	{ "val": 200.0, "color": Color(0.82, 0.15, 0.00, 0.83) },
+	{ "val": 300.0, "color": Color(0.62, 0.00, 0.00, 0.85) },
+	{ "val": 400.0, "color": Color(0.42, 0.00, 0.05, 0.87) },
+	{ "val": 500.0, "color": Color(0.28, 0.08, 0.05, 0.90) },
+]
+
 ## Mid-level lapse rate (500-700mb) color ramp — °C/km
 static var lapse_rate_ml_stops: Array[Dictionary] = [
 	{ "val": 0.0,  "color": Color(0.90, 0.92, 0.95, 0.0) },

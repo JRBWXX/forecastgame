@@ -307,6 +307,119 @@ def compute_mlcape(temp_pl: np.ndarray, q_pl: np.ndarray,
 
     return np.clip(cape, 0.0, 10000.0)
 
+def compute_mucape_mucin(temp_pl: np.ndarray, q_pl: np.ndarray,
+                          pressure_levels: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Compute Most-Unstable CAPE and CIN (J/kg).
+    Searches the lowest 300 hPa (1000-700mb) for the parcel with highest CAPE.
+    Applies virtual temperature correction.
+    Returns (mucape, mucin) both in J/kg (mucin as positive magnitude).
+    """
+    nlat, nlon = temp_pl.shape[1], temp_pl.shape[2]
+    mucape = np.zeros((nlat, nlon), dtype=np.float32)
+    mucin  = np.zeros((nlat, nlon), dtype=np.float32)
+
+    A = 17.625
+    B = 243.04
+    Rd = 287.05
+    Cp = 1005.7
+    g  = 9.81
+    Lv = 2.501e6
+
+    sort_idx = np.argsort(pressure_levels)[::-1]
+    pressure_levels = pressure_levels[sort_idx]
+    temp_pl = temp_pl[sort_idx]
+    q_pl    = q_pl[sort_idx]
+
+    # Search for most unstable parcel in lowest 300 hPa (1000-700 mb)
+    search_levels = [p for p in pressure_levels if 700.0 <= p <= 1000.0]
+
+    for j in range(nlat):
+        for i in range(nlon):
+            best_cape = 0.0
+            best_cin  = 0.0
+
+            for start_p in search_levels:
+                # Find index of this starting level
+                start_idx = int(np.argmin(np.abs(pressure_levels - start_p)))
+                t_parcel = float(temp_pl[start_idx, j, i])
+                q_parcel = max(float(q_pl[start_idx, j, i]), 0.0)
+
+                # Dewpoint from q and pressure
+                e = q_parcel * start_p / (0.622 + q_parcel)
+                e = max(e, 0.001)
+                td_c = (B * np.log(e / 6.112)) / (A - np.log(e / 6.112))
+                td_k = td_c + 273.15
+
+                # LCL temperature and pressure
+                tlcl = 56.0 + 1.0 / (
+                    1.0 / (td_k - 56.0) + np.log(t_parcel / td_k) / 800.0)
+                plcl = start_p * (tlcl / t_parcel) ** (Cp / Rd)
+
+                prev_p = start_p
+                prev_t = t_parcel
+                prev_q = q_parcel
+                cape_val = 0.0
+                cin_val  = 0.0
+                lfc_found = False
+
+                for lev_idx in range(len(pressure_levels)):
+                    p = float(pressure_levels[lev_idx])
+                    if p >= start_p:
+                        continue
+                    if p < 100.0:
+                        break
+
+                    t_env = float(temp_pl[lev_idx, j, i])
+                    q_env = max(float(q_pl[lev_idx, j, i]), 0.0)
+                    tv_env = t_env * (1.0 + 0.608 * q_env)
+
+                    dp = prev_p - p
+                    if dp <= 0:
+                        continue
+
+                    if prev_p > plcl:
+                        # Dry adiabatic
+                        t_parcel = prev_t * (p / prev_p) ** (Rd / Cp)
+                        q_parcel = prev_q
+                    else:
+                        # Moist pseudo-adiabatic
+                        t_c_p = t_parcel - 273.15
+                        es = 6.112 * np.exp(A * t_c_p / (B + t_c_p))
+                        ws = 0.622 * es / max(p - es, 0.001)
+                        q_parcel = ws
+                        numer = Rd * t_parcel + Lv * ws
+                        denom = Cp + (Lv**2 * ws * 0.622) / (Rd * t_parcel**2)
+                        gamma_s = numer / (denom * p)
+                        t_parcel = t_parcel - gamma_s * dp
+
+                    tv_parcel = t_parcel * (1.0 + 0.608 * q_parcel)
+                    t_avg = (tv_parcel + tv_env) / 2.0
+                    dz = (Rd * t_avg / g) * np.log(prev_p / p)
+
+                    if tv_parcel > tv_env:
+                        lfc_found = True
+                        buoy = g * (tv_parcel - tv_env) / tv_env
+                        cape_val += buoy * dz
+                    elif not lfc_found:
+                        # Below LFC — accumulate CIN
+                        buoy = g * (tv_parcel - tv_env) / tv_env
+                        cin_val += buoy * dz  # negative contribution
+
+                    prev_p = p
+                    prev_t = t_parcel
+                    prev_q = q_parcel
+
+                if cape_val > best_cape:
+                    best_cape = cape_val
+                    best_cin  = abs(cin_val)
+
+            mucape[j, i] = best_cape
+            mucin[j, i]  = best_cin
+
+    return (np.clip(mucape, 0.0, 10000.0).astype(np.float32),
+            np.clip(mucin,  0.0, 1000.0).astype(np.float32))
+
 def compute_lapse_rate(t_upper: np.ndarray, t_lower: np.ndarray,
                        z_upper: np.ndarray, z_lower: np.ndarray) -> np.ndarray:
     """
@@ -513,10 +626,6 @@ def main() -> int:
         cin_grid = gaussian_filter(cin_grid, sigma=0.8).astype(np.float32)
         write_gridf(str(output_dir / 'cinh.gridf'), cin_grid)
 
-        # Surface winds in m/s for SRH computation
-        u10_ms_game = project_to_game_grid(u10, lats, lons)
-        v10_ms_game = project_to_game_grid(v10, lats, lons)
-
     # ── MLCAPE — computed from pressure-level temps ──────────
 
     print("  Computing MLCAPE...")
@@ -524,6 +633,21 @@ def main() -> int:
                                  np.array(pressure_level_list, dtype=np.float32))
     mlcape_grid = gaussian_filter(mlcape_grid, sigma=0.8).astype(np.float32)
     write_gridf(str(output_dir / 'mlcape.gridf'), mlcape_grid)
+
+    # MUCAPE and MUCIN — computed from pressure-level profiles
+    print("  Computing MUCAPE/MUCIN...")
+    mucape_grid, mucin_grid = compute_mucape_mucin(
+        temp_pl_arr, q_pl_arr,
+        np.array(pressure_level_list, dtype=np.float32)
+    )
+    mucape_grid = gaussian_filter(mucape_grid, sigma=0.8).astype(np.float32)
+    mucin_grid = gaussian_filter(mucin_grid, sigma=0.8).astype(np.float32)
+    write_gridf(str(output_dir / 'mucape.gridf'), mucape_grid)
+    write_gridf(str(output_dir / 'mucinh.gridf'), mucin_grid)
+
+    # Surface winds in m/s for SRH computation
+    u10_ms_game = project_to_game_grid(u10, lats, lons)
+    v10_ms_game = project_to_game_grid(v10, lats, lons)
 
     # ── SRH — load wind profiles once, compute both layers ───
 

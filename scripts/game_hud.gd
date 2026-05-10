@@ -14,7 +14,7 @@ signal scenario_drawer_requested
 const PARAM_GROUPS: Array[Dictionary] = [
 	{
 		"label": "Instability",
-		"params": ["SBCAPE", "MLCAPE", "CINH", "MLLR", "LLLR"],
+		"params": ["SBCAPE", "MLCAPE", "MUCAPE", "CINH", "MUCINH", "MLLR", "LLLR"],
 	},
 	{
 		"label": "Kinematics",
@@ -33,7 +33,9 @@ const PARAM_GROUPS: Array[Dictionary] = [
 const PARAM_FULL_NAMES: Dictionary = {
 	"SBCAPE": "CAPE - Surface-Based",
 	"MLCAPE": "CAPE - Mixed Layer",
+	"MUCAPE": "CAPE - Most Unstable",
 	"CINH":   "CINH - Surface-Based",
+	"MUCINH": "CINH - Most Unstable",
 	"MLLR":   "Lapse Rate - 500-700mb",
 	"LLLR":   "Lapse Rate - Sfc-700mb",
 	"SHR06":  "Bulk Shear - Sfc-6km",

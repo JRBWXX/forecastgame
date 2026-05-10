@@ -117,6 +117,14 @@ static func load_scenario(scenario_dir: String) -> Dictionary:
 	if mlcape:
 		wind_data["MLCAPE"] = mlcape
 		
+	var mucape := load_file(scenario_dir + "/mucape.gridf")
+	if mucape:
+		wind_data["MUCAPE"] = mucape
+	
+	var mucinh := load_file(scenario_dir + "/mucinh.gridf")
+	if mucinh:
+		wind_data["MUCINH"] = mucinh
+		
 	var cinh := load_file(scenario_dir + "/cinh.gridf")
 	if cinh:
 		wind_data["CINH"] = cinh

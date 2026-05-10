@@ -20,14 +20,14 @@ var _current_scenario_id: String = ""
 var _current_perturbation: PerturbationSystem.PerturbationResult = null
 
 var _param_list: Array[String] = [
-	"SBCAPE", "MLCAPE", "CINH", "MLLR", "LLLR",
+	"SBCAPE", "MLCAPE", "MUCAPE", "CINH", "MUCINH", "MLLR", "LLLR",
 	"SHR06", "SHR03", "SRH03", "SRH01", "SFTD",
 	"200MB", "300MB", "500MB", "700MB", "850MB", "925MB", "SFC"
 ]
 var _current_param_index: int = 0
 
 const PARAM_UNITS: Dictionary = {
-	"SBCAPE": " J/kg", "MLCAPE": " J/kg", "CINH": " J/kg",
+	"SBCAPE": " J/kg", "MLCAPE": " J/kg", "MUCAPE": " J/kg", "CINH": " J/kg", "MUCINH": " J/kg",
 	"MLLR": " °C/km", "LLLR": " °C/km",
 	"SHR03":  " kt", "SHR06": " kt", "SFTD": " °F", 
 	"SRH03": " m²/s²", "SRH01":  " m²/s²",
@@ -48,7 +48,9 @@ const CONTOUR_CONFIG: Dictionary = {
 const PARAM_RAMPS: Dictionary = {
 	"SBCAPE": "sbcape_stops",
 	"MLCAPE": "mlcape_stops",
+	"MUCAPE": "mucape_stops",
 	"CINH":   "cinh_stops",
+	"MUCINH": "mucinh_stops",
 	"MLLR":   "lapse_rate_ml_stops",
 	"LLLR":   "lapse_rate_ll_stops",
 	"SHR03":  "bulk_shear_stops",
@@ -207,7 +209,9 @@ func _get_ramp_stops(ramp_name: String) -> Array[Dictionary]:
 	match ramp_name:
 		"sbcape_stops":        return AtmosphereData.sbcape_stops
 		"mlcape_stops":        return AtmosphereData.mlcape_stops
+		"mucape_stops":        return AtmosphereData.mucape_stops
 		"cinh_stops":          return AtmosphereData.cinh_stops
+		"mucinh_stops":        return AtmosphereData.mucinh_stops
 		"lapse_rate_ml_stops": return AtmosphereData.lapse_rate_ml_stops
 		"lapse_rate_ll_stops": return AtmosphereData.lapse_rate_ll_stops
 		"bulk_shear_stops":    return AtmosphereData.bulk_shear_stops
