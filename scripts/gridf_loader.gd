@@ -120,6 +120,14 @@ static func load_scenario(scenario_dir: String) -> Dictionary:
 	var cinh := load_file(scenario_dir + "/cinh.gridf")
 	if cinh:
 		wind_data["CINH"] = cinh
+		
+	var lr_ml := load_file(scenario_dir + "/lr_midlevel.gridf")
+	if lr_ml:
+		wind_data["MLLR"] = lr_ml
+
+	var lr_ll := load_file(scenario_dir + "/lr_lowlevel.gridf")
+	if lr_ll:
+		wind_data["LLLR"] = lr_ll
 	
 	var srh := load_file(scenario_dir + "/srh03.gridf")
 	if srh:

@@ -170,6 +170,38 @@ static var cinh_stops: Array[Dictionary] = [
 	{ "val": 500.0, "color": Color(0.28, 0.08, 0.05, 0.90) },    # Very dark brown
 ]
 
+## Mid-level lapse rate (500-700mb) color ramp — °C/km
+static var lapse_rate_ml_stops: Array[Dictionary] = [
+	{ "val": 0.0,  "color": Color(0.90, 0.92, 0.95, 0.0) },
+	{ "val": 5.5,  "color": Color(0.90, 0.92, 0.95, 0.0) },   # Transparent below moist adiabatic
+	{ "val": 6.0,  "color": Color(0.65, 0.78, 0.55, 0.35) },  # Light green
+	{ "val": 6.5,  "color": Color(0.45, 0.72, 0.35, 0.55) },  # Green
+	{ "val": 7.0,  "color": Color(0.82, 0.85, 0.20, 0.65) },  # Yellow-green
+	{ "val": 7.5,  "color": Color(0.95, 0.80, 0.05, 0.72) },  # Yellow
+	{ "val": 8.0,  "color": Color(0.98, 0.62, 0.00, 0.78) },  # Orange
+	{ "val": 8.5,  "color": Color(0.95, 0.38, 0.00, 0.83) },  # Dark orange
+	{ "val": 9.0,  "color": Color(0.88, 0.15, 0.00, 0.87) },  # Red
+	{ "val": 9.5,  "color": Color(0.65, 0.00, 0.05, 0.90) },  # Dark red
+	{ "val": 10.0, "color": Color(0.45, 0.00, 0.20, 0.92) },  # Maroon
+	{ "val": 12.0, "color": Color(0.28, 0.05, 0.28, 0.95) },  # Purple
+]
+
+## Low-level lapse rate (Sfc-700mb) color ramp — °C/km
+static var lapse_rate_ll_stops: Array[Dictionary] = [
+	{ "val": 0.0,  "color": Color(0.90, 0.92, 0.95, 0.0) },
+	{ "val": 4.0,  "color": Color(0.90, 0.92, 0.95, 0.0) },   # Transparent below threshold
+	{ "val": 5.0,  "color": Color(0.65, 0.78, 0.55, 0.35) },  # Light green
+	{ "val": 5.5,  "color": Color(0.45, 0.72, 0.35, 0.55) },  # Green
+	{ "val": 6.0,  "color": Color(0.82, 0.85, 0.20, 0.65) },  # Yellow-green
+	{ "val": 6.5,  "color": Color(0.95, 0.80, 0.05, 0.72) },  # Yellow
+	{ "val": 7.0,  "color": Color(0.98, 0.62, 0.00, 0.78) },  # Orange
+	{ "val": 7.5,  "color": Color(0.95, 0.38, 0.00, 0.83) },  # Dark orange
+	{ "val": 8.0,  "color": Color(0.88, 0.15, 0.00, 0.87) },  # Red
+	{ "val": 8.5,  "color": Color(0.65, 0.00, 0.05, 0.90) },  # Dark red
+	{ "val": 9.0,  "color": Color(0.45, 0.00, 0.20, 0.92) },  # Maroon
+	{ "val": 10.0, "color": Color(0.28, 0.05, 0.28, 0.95) },  # Purple
+]
+
 static var bulk_shear_stops: Array[Dictionary] = [
 	{ "val": 0.0,   "color": Color(0.95, 0.95, 0.95, 0.0) },
 	{ "val": 20.0,  "color": Color(0.92, 0.92, 0.95, 0.45) },

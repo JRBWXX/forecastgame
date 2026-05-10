@@ -17,6 +17,8 @@ var _ramp_map: Dictionary = {
 	"SBCAPE": AtmosphereData.sbcape_stops,
 	"MLCAPE": AtmosphereData.mlcape_stops,
 	"CINH":   AtmosphereData.cinh_stops,
+	"MLLR":   AtmosphereData.lapse_rate_ml_stops,
+	"LLLR":   AtmosphereData.lapse_rate_ll_stops,
 	"SHR03":  AtmosphereData.bulk_shear_stops,
 	"SHR06":  AtmosphereData.bulk_shear_stops,
 	"SFTD":   AtmosphereData.dewpoint_stops,

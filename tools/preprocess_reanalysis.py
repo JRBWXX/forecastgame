@@ -307,6 +307,21 @@ def compute_mlcape(temp_pl: np.ndarray, q_pl: np.ndarray,
 
     return np.clip(cape, 0.0, 10000.0)
 
+def compute_lapse_rate(t_upper: np.ndarray, t_lower: np.ndarray,
+                       z_upper: np.ndarray, z_lower: np.ndarray) -> np.ndarray:
+    """
+    Compute lapse rate in °C/km between two levels.
+    t_upper, t_lower: temperature in Kelvin
+    z_upper, z_lower: geopotential height in meters
+    Returns lapse rate in °C/km (positive = temperature decreasing with height)
+    """
+    dz = z_upper - z_lower      # meters, positive upward
+    dt = t_upper - t_lower      # Kelvin, negative when temp decreases with height
+    # Avoid division by zero
+    dz = np.where(np.abs(dz) < 1.0, 1.0, dz)
+    lapse = -dt / dz * 1000.0   # °C/km
+    return np.clip(lapse, 0.0, 12.0).astype(np.float32)
+
 def compute_srh03(
     u_levels: dict, v_levels: dict,
     u_sfc: np.ndarray, v_sfc: np.ndarray
@@ -533,9 +548,9 @@ def main() -> int:
     srh01_grid = compute_srh03(u_lvl_01, v_lvl_01, u10_ms_game, v10_ms_game)
     write_gridf(str(output_dir / 'srh01.gridf'), srh01_grid)
 
-    # ── Bulk shear ───────────────────────────────────────────
+    # ── Bulk shear and lapse rates ───────────────────────────
 
-    print("Processing bulk shear...")
+    print("Processing bulk shear and lapse rates...")
     with Dataset(pl_wind_hgt_file, 'r') as nc:
         lats, lons = get_lats_lons(nc)
         u500 = project_to_game_grid(ms_to_knots(get_var_level(nc, 'u', 500)), lats, lons)
@@ -543,17 +558,48 @@ def main() -> int:
         u700 = project_to_game_grid(ms_to_knots(get_var_level(nc, 'u', 700)), lats, lons)
         v700 = -project_to_game_grid(ms_to_knots(get_var_level(nc, 'v', 700)), lats, lons)
 
+        # Heights for lapse rate computation
+        z500_m = project_to_game_grid(
+            get_var_level(nc, 'z', 500) / 9.80665, lats, lons)
+        z700_m = project_to_game_grid(
+            get_var_level(nc, 'z', 700) / 9.80665, lats, lons)
+
     # 0-6km shear (sfc to 500mb)
     shear_u = u500 - u10_kt
     shear_v = v500 - v10_kt
-    shear_mag = np.sqrt(shear_u**2 + shear_v**2).astype(np.float32)
+    shear_mag = np.sqrt(shear_u ** 2 + shear_v ** 2).astype(np.float32)
     write_gridf(str(output_dir / 'shear_06.gridf'), shear_mag, shear_u, shear_v)
 
     # 0-3km shear (sfc to 700mb)
     shear03_u = u700 - u10_kt
     shear03_v = v700 - v10_kt
-    shear03_mag = np.sqrt(shear03_u**2 + shear03_v**2).astype(np.float32)
+    shear03_mag = np.sqrt(shear03_u ** 2 + shear03_v ** 2).astype(np.float32)
     write_gridf(str(output_dir / 'shear_03.gridf'), shear03_mag, shear03_u, shear03_v)
+
+    # Temperature at 500mb and 700mb for lapse rates
+    with Dataset(cape_pl_file, 'r') as nc:
+        pl_lats_cape, pl_lons_cape = get_lats_lons(nc)
+        t500_game = project_to_game_grid(
+            get_var_level(nc, 't', 500), pl_lats_cape, pl_lons_cape)
+        t700_game = project_to_game_grid(
+            get_var_level(nc, 't', 700), pl_lats_cape, pl_lons_cape)
+
+    # Surface temperature (2m, already in K)
+    with Dataset(sfc_file, 'r') as nc:
+        sfc_lats, sfc_lons = get_lats_lons(nc)
+        t2m_game = project_to_game_grid(
+            get_var(nc, 't2m', '2m_temperature'), sfc_lats, sfc_lons)
+
+    # 500-700mb lapse rate (mid-level)
+    lr_ml = compute_lapse_rate(t500_game, t700_game, z500_m, z700_m)
+    lr_ml = gaussian_filter(lr_ml, sigma=0.8).astype(np.float32)
+    write_gridf(str(output_dir / 'lr_midlevel.gridf'), lr_ml)
+
+    # Sfc-700mb lapse rate (low-level, surface ~0m)
+    z_sfc = np.zeros_like(z700_m)  # Surface height approximated as 0m
+    lr_ll = compute_lapse_rate(t700_game, t2m_game, z700_m, z_sfc)
+    lr_ll = gaussian_filter(lr_ll, sigma=0.8).astype(np.float32)
+    write_gridf(str(output_dir / 'lr_lowlevel.gridf'), lr_ll)
 
     print(f"\nDone. Output files in {output_dir}/")
     for f in sorted(output_dir.glob('*.gridf')):

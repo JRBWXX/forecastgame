@@ -20,7 +20,7 @@ var _current_scenario_id: String = ""
 var _current_perturbation: PerturbationSystem.PerturbationResult = null
 
 var _param_list: Array[String] = [
-	"SBCAPE", "MLCAPE", "CINH",
+	"SBCAPE", "MLCAPE", "CINH", "MLLR", "LLLR",
 	"SHR06", "SHR03", "SRH03", "SRH01", "SFTD",
 	"200MB", "300MB", "500MB", "700MB", "850MB", "925MB", "SFC"
 ]
@@ -28,6 +28,7 @@ var _current_param_index: int = 0
 
 const PARAM_UNITS: Dictionary = {
 	"SBCAPE": " J/kg", "MLCAPE": " J/kg", "CINH": " J/kg",
+	"MLLR": " °C/km", "LLLR": " °C/km",
 	"SHR03":  " kt", "SHR06": " kt", "SFTD": " °F", 
 	"SRH03": " m²/s²", "SRH01":  " m²/s²",
 	"200MB": " kt", "300MB": " kt", "500MB": " kt",
@@ -48,6 +49,8 @@ const PARAM_RAMPS: Dictionary = {
 	"SBCAPE": "sbcape_stops",
 	"MLCAPE": "mlcape_stops",
 	"CINH":   "cinh_stops",
+	"MLLR":   "lapse_rate_ml_stops",
+	"LLLR":   "lapse_rate_ll_stops",
 	"SHR03":  "bulk_shear_stops",
 	"SHR06":  "bulk_shear_stops",
 	"SFTD":   "dewpoint_stops",
@@ -202,16 +205,18 @@ func _update_legend(param_name: String) -> void:
 
 func _get_ramp_stops(ramp_name: String) -> Array[Dictionary]:
 	match ramp_name:
-		"sbcape_stops":       return AtmosphereData.sbcape_stops
-		"mlcape_stops":       return AtmosphereData.mlcape_stops
-		"cinh_stops":         return AtmosphereData.cinh_stops
-		"bulk_shear_stops":   return AtmosphereData.bulk_shear_stops
-		"dewpoint_stops":     return AtmosphereData.dewpoint_stops
-		"srh03_stops":        return AtmosphereData.srh03_stops
-		"wind_200mb_stops":   return AtmosphereData.wind_200mb_stops
-		"wind_700mb_stops":   return AtmosphereData.wind_700mb_stops
-		"wind_925mb_stops":   return AtmosphereData.wind_925mb_stops
-		"wind_sfc_stops":     return AtmosphereData.wind_sfc_stops
+		"sbcape_stops":        return AtmosphereData.sbcape_stops
+		"mlcape_stops":        return AtmosphereData.mlcape_stops
+		"cinh_stops":          return AtmosphereData.cinh_stops
+		"lapse_rate_ml_stops": return AtmosphereData.lapse_rate_ml_stops
+		"lapse_rate_ll_stops": return AtmosphereData.lapse_rate_ll_stops
+		"bulk_shear_stops":    return AtmosphereData.bulk_shear_stops
+		"dewpoint_stops":      return AtmosphereData.dewpoint_stops
+		"srh03_stops":         return AtmosphereData.srh03_stops
+		"wind_200mb_stops":    return AtmosphereData.wind_200mb_stops
+		"wind_700mb_stops":    return AtmosphereData.wind_700mb_stops
+		"wind_925mb_stops":    return AtmosphereData.wind_925mb_stops
+		"wind_sfc_stops":      return AtmosphereData.wind_sfc_stops
 	return []
 
 # ── HUD signal handlers ─────────────────────────────────────
