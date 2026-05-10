@@ -1,7 +1,0 @@
-res://scenes/main.tscn
-res://scripts/PerturbationSystem.gd
-res://scripts/gridf_loader.gd
-res://scripts/atmosphere_data.gd
-res://scripts/game_hud.gd
-res://scripts/atmosphere_overlay.gd
-res://scripts/main.gd
